@@ -19,7 +19,7 @@ fn main() -> Result <(), Box<dyn Error>>{
     let mut stdout = io::stdout();
     terminal::enable_raw_mode()?; //So we can accept keyboard input, ? -> crash if we have error
     stdout.execute(EnterAlternateScreen)?;
-    stdout.execute(Hide); // Hide the cursor
+    stdout.execute(Hide)?; // Hide the cursor
     
     //Render loop in a seperate thread
     let (render_tx, render_rx) = mpsc::channel(); // In real project should use crossbeam channels instead.
@@ -72,6 +72,9 @@ fn main() -> Result <(), Box<dyn Error>>{
         if invaders.update(delta){
             audio.play("move");
         }
+        if player.detect_hits(&mut invaders){
+            audio.play("explode");
+        }
 
         // Draw and render
         let drawables: Vec<&dyn Drawable> = vec![&player, &invaders];
@@ -80,6 +83,16 @@ fn main() -> Result <(), Box<dyn Error>>{
         }
         let _ = render_tx.send(curr_frame); //Ignore Error, we expect this will fail the first few times.
         thread::sleep(Duration::from_millis(1)); // Gameloop is faster then render, so do this to not render too many frames/sec
+        
+        // Win or lose?
+        if invaders.all_killed(){
+            audio.play("win");
+            break 'gameloop;
+        }
+        if invaders.reached_bottom(){
+            audio.play("lose");
+            break 'gameloop;
+        }
     }
 
     //Cleanuo
@@ -90,3 +103,9 @@ fn main() -> Result <(), Box<dyn Error>>{
     terminal::disable_raw_mode()?;
     Ok(())
 }
+
+// More features that can be added:
+
+// Score
+// Change playing field dimension
+// Change logic, to make multi character ship and aliens.    
